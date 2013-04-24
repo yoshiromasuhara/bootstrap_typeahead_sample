@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Typeahead MailInput Sample</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="Content-Style-Type" content="text/css">
+    <meta http-equiv="Content-Script-Type" content="text/javascript">
+    <link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/css/bootstrap-combined.min.css" rel="stylesheet">
+    <style type="text/css">
+        body{
+            margin:20px;
+        }
+        /* メールアドレス入力表示エリア */
+        div.mailAddress{
+            width:30%;
+            border: 1px #336 dotted;
+            padding:5px 0 0 5px;
+            vertical-align: middle;
+        }
+        
+        /* 選択メールアドレス */
+        div.selectMail{
+            float:left;
+            line-height: 2em;
+            height: 2em;
+            padding : 0 5px;
+            margin:0 10px 5px 0;
+            border-radius: 5px;  
+            -webkit-border-radius: 5px;
+            -moz-border-radius: 5px;
+            border: 1px #336 solid;
+            background-color: #ddf;
+        }
+        
+        /* 選択メールアドレスの×ボタン */
+        div.selectMail a.del{
+            margin-left:10px;
+            font-weight:bold;
+            font-size:1.2em;
+            color: #000000;
+            text-decoration: none;
+            cursor: pointer;
+            opacity: 0.4;
+        }
+        
+        /* メールアドレス入力テキスト */
+        #mail{
+            outline: none;
+            border:none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Typeahead MailInput Sample</h1>
+    ※以下にメールアドレスを入力してください。（例：test1@yoshi.com
+    <div class="mailAddress">
+        <input type="text" id="mail" autocomplete="off" />
+        <br clear="all" />
+    </div>
+    
+    <script id="tmplSelAddress" type="text/x-jquery-tmpl">
+        <div class="selectMail">${selAddress}<a href="javascript:void(0)" class="del" >×</a></div>
+    </script>
+    
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script src="http://ajax.microsoft.com/ajax/jquery.templates/beta1/jquery.tmpl.min.js"></script>
+    <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.1/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+        $(function(){
+           
+           //Typeaheadの初期化処理（2文字以上の入力で実行）
+           $("#mail").typeahead({source:(function(queryStr,processFunc){
+                
+                //ajaxで入力文字を条件にサーバからアドレス一覧を取得
+                //取得アドレスをreturnで戻したいので同期処理で実施
+                var response="";
+                $.ajax({
+                    async :false,
+                    type: "GET",
+                    url: "mail.php",
+                    data: {"q":queryStr},
+                    dataType :"json",
+                    success: function(data){
+                        response=data;
+                    }
+                });
+                return response;
+            }),minLength:2});
+            
+            //選択アドレスの画面追加処理
+            var addSelMail = function(){
+                $("#tmplSelAddress").tmpl({selAddress:$("#mail").val()}).insertBefore("#mail");
+                $("#mail").val("");
+            }
+            
+            //メール入力テキストのchangeイベントで選択アドレスを画面追加
+            $("#mail").change(function(){
+                if($("ul.typeahead li.active").text()==$(this).val()) addSelMail();
+            });
+            
+            //メール入力テキストが空でBackSpace時には選択アドレスを消去
+            //スペースボタン押下時は、現在の入力値を選択メールアドレスとして追加
+            $("#mail").on("keydown",function(e){
+                var mails=$("div.selectMail");
+                if(e.keyCode=="8" && $("#mail").val()=="" && 0 < mails.length){
+                    mails.eq(mails.length-1).remove();
+                }else if(e.keyCode=="32"){
+                    if($("#mail").val()!="") addSelMail();
+                    return false;
+                }
+            });
+            
+            //メール入力テキストからフォーカスが離れた場合は入力値を選択メールアドレスとして追加
+            //但しtypeaheadの一覧に移動した際は対象外とする
+            $("#mail").on("blur",function(e){
+                if ($("ul.typeahead").is(':visible')) return;
+                if($("#mail").val()!="") addSelMail();
+            });
+            
+            //選択メールアドレスの×ボタンクリックで消去
+            $("div.mailAddress").on("click","a.del",function(){
+                $(this).parent().remove();
+            });
+        });
+    </script>
+</body>
+</html>
